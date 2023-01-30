@@ -1,14 +1,45 @@
 <!DOCTYPE html>
 <html lang="EN">
 <head>
+    <script>
+    function play() {
+            fetch("/current-playback")
+                .then(response => response.json())
+                .then(data => {
+                    console.log(data);
+                })
+                .catch(error => {
+                    console.error(error);
+                });
+    }
+</script>
+        <script>
+    function skipinsert() {
+            fetch("/skip-insert")
+                .then(response => response.json())
+                .then(data => {
+                    console.log(data);
+                })
+                .catch(error => {
+                    console.error(error);
+                });
+    }
+</script>
+
     <link rel="stylesheet"
           href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <script
         src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery/min.js"></script>
     <script
+        src="../js/main.js"></script>
+    <script
         src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
     <script
         src="https://maxcdn.bootstrap.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script
+        src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script
+        src="https://sdk.scdn.co/spotify-player.js"></script>
     <title>Spotify Stats</title>
 </head>
 <body>
@@ -18,9 +49,16 @@
     <p> samples 2</p>
     <p> Sample 33333</p>
 </div>
-{% for item in all_data %}
-<p> {{ item }} </p>
-{% endfor %}
+<div class="container-fluid" style="background-color: #f2f2f2;">
+  <div class="row">
+    <div class="col-sm-6">
+      <button type="button" class="btn btn-danger" onclick="javascript:play()">Play</button>
+      <button type="button" class="btn btn-danger">Pause</button>
+    </div>
+    <div class="col-sm-6">
+      <button type="button" class="btn btn-danger"onclick="javascript:skipinsert()">Skip Forward</button>
+      <button type="button" class="btn btn-danger">Skip Back</button>
+    </div>
+  </div>
+</div>
 </body>
-</head>
-</html>
