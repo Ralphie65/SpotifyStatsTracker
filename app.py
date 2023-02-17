@@ -5,18 +5,15 @@ import spotipy
 import sqlite3
 from flask import Flask, request, url_for, session, redirect, g, render_template, jsonify
 from spotipy.oauth2 import SpotifyOAuth
+#import pandas#
 
 app = Flask(__name__)
 
 app.secret_key = ''
-app.config['']
+app.config = ''
 TOKEN_INFO = ''
 conn = sqlite3.connect("trackstats.db")
 cursor = conn.cursor()
-
-
-# cursor.execute("create table tracks (track_name text, artist text, times_played integer, average_duration_played "
-# "real, last_duration_played real)")
 
 
 @app.route('/')
@@ -63,12 +60,14 @@ def getplayback():
         print("user not logged in")
         return redirect("/")
     sp = spotipy.Spotify(auth=token_info['access_token'])
-    currentracklist = sp.current_playback()
-    cname = currentracklist.get('name')
-    cid = currentracklist.get('id')
-    cartist = currentracklist.get('artists')
-    print(currentracklist)
-    return jsonify(currentracklist)
+    currentracklist = sp.currently_playing('US')
+    cname = currentracklist['item']['name']
+    ctime = currentracklist['progress_ms']
+    cid = currentracklist['item']['id']
+    url = currentracklist['item']['album']['images'][1]['url']
+    #print(currentracklist)#
+    #cresults = (cname, ctime, cid, url)
+    return jsonify({'name': cname, 'time': ctime, 'id': cid, 'url': url})
 
 
 @app.route('/skip-insert')
@@ -79,15 +78,15 @@ def skipinsert():
         print("user not logged in")
         return redirect("/")
     sp = spotipy.Spotify(auth=token_info['access_token'])
-    currentracklist = sp.current_playback()
+    currentracklist = sp.currently_playing('US')
     print(currentracklist)
-    cname = currentracklist.get('device').get('progress_ms')
-    print(cname)
-    cid = currentracklist.get('id')
-    cartist = currentracklist.get('artists')
-    ctime = currentracklist.get('progress_ms')
+    cname = currentracklist['item']['name']
+    ctime = currentracklist['progress_ms']
+    cartist = currentracklist['item']['artists'][0]['name']
+    cid = currentracklist['item']['id']
+    print(cname, ctime, cartist, cid)
     cskip = 1
-    #insert_track(cname, cid, cartist, ctime, cskip)#
+    insert_track(cname, cid, cartist, ctime, cskip)
     return jsonify(currentracklist)
 
 
@@ -105,8 +104,8 @@ def get_token():
 
 def create_spotify_oauth():
     return SpotifyOAuth(
-        client_id="",
-        client_secret="",
+        client_id = '',
+        client_secret = '',
         redirect_uri=url_for('redirectPage', _external=True),
         scope='user-read-private user-read-playback-state')
 
@@ -117,7 +116,7 @@ def get_db():
         db = g._database = sqlite3.connect('trackstats.db')
         cursor = db.cursor()
         cursor.execute("select user_name from users")
-        return cursor.fetchall()
+        return cursor.fetchone()
 
 
 def create_db():
@@ -128,7 +127,7 @@ def create_db():
     cursor.execute("DROP TABLE IF EXISTS trackdetails")
     cursor.execute(
         "CREATE TABLE tracks (track_id text, user_name text, track_name text, artist text, times_played INTEGER, average_duration_played "
-        "REAL, last_duration_played REAL PRIMARY KEY (track_id))")
+        "REAL, last_duration_played REAL, max_duration REAL, PRIMARY KEY (track_id))")
     cursor.execute(
         "CREATE TABLE trackdetails (auto_id INTEGER PRIMARY KEY AUTOINCREMENT, user_name text, track_name text, duration_played REAL, skipped INTEGER, track_id text)")
     # cursor.execute(
@@ -171,22 +170,22 @@ def insert_track(cname, cid, cartist, ctime, cskip):  # TODO need to take my use
     results = cursor.fetchone()  # if it exists in track details than we just log the new instance#
     if results:
         cursor.execute("INSERT INTO trackdetails(user_name, track_name, duration_played, skipped) values(?,?,?,?)",
-                       ("", cname, ctime, cskip))
+                       ("ralphie65", cname, ctime, cskip))
         conn.commit()
         # TODO: Add update command here to tracks to update amount played and avg#
     else:
         cursor.execute("INSERT INTO trackdetails(user_name, track_name, duration_played, skipped) values(?,?,?,?)",
-                       ("", cname, ctime, cskip))
+                       ("ralphie65", cname, ctime, cskip))
         conn.commit()
         cursor.execute("INSERT INTO tracks(track_id, user_name, track_name, artist, times_played, "
                        "average_duration_played, last_duration_played) values(?,?,?,?,1,0,?)",
-                       (cid, "", cname, cartist, ctime))
+                       (cid, "ralphie65", cname, cartist, ctime))
         conn.commit()
         t = cursor.execute("SELECT * FROM TRACKS")
         print(t)
         # cursor.execute("INSERT INTO trackdetails(user_name, track_name, duration_played, skipped) values(?,?,0,0)",#
-        #  ("", cname))#
-        #conn.commit()#
+        #  ("ralphie65", cname))#
+        # conn.commit()#
         return
 
 
@@ -195,6 +194,7 @@ def refreshtracks():
     conn = sqlite3.connect("trackstats.db")
     cursor = conn.cursor()
     cursor.execute("SELECT TOP 5 * FROM tracksdetails")
+    return cursor.fetchall()
 
 
 conn.close()

@@ -2,16 +2,20 @@
 <html lang="EN">
 <head>
     <script>
-    function play() {
-            fetch("/current-playback")
-                .then(response => response.json())
-                .then(data => {
-                    console.log(data);
-                })
-                .catch(error => {
-                    console.error(error);
-                });
-    }
+   function play() {
+    fetch("/current-playback")
+        .then(response => response.json())
+        .then(data => {
+            console.log(data);
+            document.getElementById('song-name').innerHTML = data.name;
+            document.getElementById('time-elapsed').innerHTML = data.time + ' ms';
+            document.getElementById('song-id').innerHTML = data.id;
+            document.getElementById('album-cover').src = data.url;
+        })
+        .catch(error => {
+            console.error(error);
+        });
+}
 </script>
         <script>
     function skipinsert() {
@@ -44,10 +48,11 @@
 </head>
 <body>
 <div class="jumbotron text-center">
-    <h1>User Name here</h1>
-    <p> sample stats 1</p>
-    <p> samples 2</p>
-    <p> Sample 33333</p>
+    <h1>Welcome: {{ all_data }}</h1>
+    <p>Song name: <span id="song-name">{{ name }}</span></p>
+    <p>Time elapsed: <span id="time-elapsed">{{ time }} ms</span></p>
+    <p>Song ID: <span id="song-id">{{ id }}</span></p>
+    <img id="album-cover" src={{ url }} alt="Album cover">
 </div>
 <div class="container-fluid" style="background-color: #f2f2f2;">
   <div class="row">
