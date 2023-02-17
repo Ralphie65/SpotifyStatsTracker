@@ -9,7 +9,7 @@
             console.log(data);
             document.getElementById('song-name').innerHTML = data.name;
             document.getElementById('time-elapsed').innerHTML = data.time + ' ms';
-            document.getElementById('song-id').innerHTML = data.id;
+            document.getElementById('song-artist').innerHTML = data.artist;
             document.getElementById('album-cover').src = data.url;
         })
         .catch(error => {
@@ -23,11 +23,18 @@
                 .then(response => response.json())
                 .then(data => {
                     console.log(data);
+            document.getElementById('song-name').innerHTML = data.name;
+            document.getElementById('time-elapsed').innerHTML = data.time + ' ms';
+            document.getElementById('song-artist').innerHTML = data.artist;
+            document.getElementById('album-cover').src = data.url;
                 })
                 .catch(error => {
                     console.error(error);
                 });
     }
+    window.addEventListener('load', function() {
+  play();
+});
 </script>
 
     <link rel="stylesheet"
@@ -51,7 +58,7 @@
     <h1>Welcome: {{ all_data }}</h1>
     <p>Song name: <span id="song-name">{{ name }}</span></p>
     <p>Time elapsed: <span id="time-elapsed">{{ time }} ms</span></p>
-    <p>Song ID: <span id="song-id">{{ id }}</span></p>
+    <p>Song Artist: <span id="song-artist">{{ artist }}</span></p>
     <img id="album-cover" src={{ url }} alt="Album cover">
 </div>
 <div class="container-fluid" style="background-color: #f2f2f2;">

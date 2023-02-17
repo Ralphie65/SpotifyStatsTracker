@@ -9,12 +9,11 @@ from spotipy.oauth2 import SpotifyOAuth
 
 app = Flask(__name__)
 
-app.secret_key = ''
-app.config = ''
-TOKEN_INFO = ''
+app.secret_key = ""
+app.config = ""
+TOKEN_INFO = ""
 conn = sqlite3.connect("trackstats.db")
 cursor = conn.cursor()
-
 
 @app.route('/')
 def login():
@@ -65,9 +64,10 @@ def getplayback():
     ctime = currentracklist['progress_ms']
     cid = currentracklist['item']['id']
     url = currentracklist['item']['album']['images'][1]['url']
+    cartist = currentracklist['item']['artists'][0]['name']
     #print(currentracklist)#
     #cresults = (cname, ctime, cid, url)
-    return jsonify({'name': cname, 'time': ctime, 'id': cid, 'url': url})
+    return jsonify({'name': cname, 'time': ctime, 'artist': cartist, 'url': url})
 
 
 @app.route('/skip-insert')
@@ -84,10 +84,12 @@ def skipinsert():
     ctime = currentracklist['progress_ms']
     cartist = currentracklist['item']['artists'][0]['name']
     cid = currentracklist['item']['id']
-    print(cname, ctime, cartist, cid)
+    url = currentracklist['item']['album']['images'][1]['url']
+    #print(cname, ctime, cartist, cid)#
     cskip = 1
     insert_track(cname, cid, cartist, ctime, cskip)
-    return jsonify(currentracklist)
+    sp.next_track()
+    return jsonify({'name': cname, 'time': ctime, 'artist': cartist, 'url': url})
 
 
 def get_token():
@@ -104,10 +106,10 @@ def get_token():
 
 def create_spotify_oauth():
     return SpotifyOAuth(
-        client_id = '',
-        client_secret = '',
+        client_id="",
+        client_secret="",
         redirect_uri=url_for('redirectPage', _external=True),
-        scope='user-read-private user-read-playback-state')
+        scope=('user-read-private', 'user-modify-playback-state', 'user-read-currently-playing'))
 
 
 def get_db():
@@ -116,7 +118,8 @@ def get_db():
         db = g._database = sqlite3.connect('trackstats.db')
         cursor = db.cursor()
         cursor.execute("select user_name from users")
-        return cursor.fetchone()
+        cresult = cursor.fetchone()
+        return cresult[0]
 
 
 def create_db():
@@ -186,6 +189,7 @@ def insert_track(cname, cid, cartist, ctime, cskip):  # TODO need to take my use
         # cursor.execute("INSERT INTO trackdetails(user_name, track_name, duration_played, skipped) values(?,?,0,0)",#
         #  ("ralphie65", cname))#
         # conn.commit()#
+        conn.close()
         return
 
 
