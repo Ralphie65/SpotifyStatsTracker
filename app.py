@@ -1,8 +1,10 @@
+import pdb
 import time
 import spotipy
 # import json#
 # import pprint#
 import sqlite3
+import pdp
 from flask import Flask, request, url_for, session, redirect, g, render_template, jsonify
 from spotipy.oauth2 import SpotifyOAuth
 #import pandas#
@@ -10,8 +12,8 @@ from spotipy.oauth2 import SpotifyOAuth
 app = Flask(__name__)
 
 app.secret_key = ""
-app.config = ""
-TOKEN_INFO = ""
+app.config = ''
+TOKEN_INFO = ''
 conn = sqlite3.connect("trackstats.db")
 cursor = conn.cursor()
 
@@ -59,14 +61,22 @@ def getplayback():
         print("user not logged in")
         return redirect("/")
     sp = spotipy.Spotify(auth=token_info['access_token'])
+    #sp.start_playback()#
+    #pdb.set_trace()#
     currentracklist = sp.currently_playing('US')
+    if currentracklist is None:
+        lastdevice = get_devices()
+        if lastdevice != 0:
+            sp.start_playback()
+    else:
+        return 0
     cname = currentracklist['item']['name']
     ctime = currentracklist['progress_ms']
     cid = currentracklist['item']['id']
     url = currentracklist['item']['album']['images'][1]['url']
     cartist = currentracklist['item']['artists'][0]['name']
     #print(currentracklist)#
-    #cresults = (cname, ctime, cid, url)
+    #cresults = (cname, ctime, cid, url)#
     return jsonify({'name': cname, 'time': ctime, 'artist': cartist, 'url': url})
 
 
@@ -91,6 +101,50 @@ def skipinsert():
     sp.next_track()
     return jsonify({'name': cname, 'time': ctime, 'artist': cartist, 'url': url})
 
+@app.route('/pause-song')
+def pausesong():
+    try:
+        token_info = get_token()
+    except Exception:
+        print("user not logged in")
+        return redirect("/")
+    sp = spotipy.Spotify(auth=token_info['access_token'])
+    currentracklist = sp.currently_playing('US')
+    cname = currentracklist['item']['name']
+    ctime = currentracklist['progress_ms']
+    cartist = currentracklist['item']['artists'][0]['name']
+    cid = currentracklist['item']['id']
+    url = currentracklist['item']['album']['images'][1]['url']
+    cskip = 1
+    #insert_track(cname, cid, cartist, ctime, cskip)#
+    sp.pause_playback()
+    return jsonify({'name': cname, 'time': ctime, 'artist': cartist, 'url': url})
+
+@app.route('/go-back')
+def goback():
+    try:
+        token_info = get_token()
+    except Exception:
+        print("user not logged in")
+        return redirect("/")
+    sp = spotipy.Spotify(auth=token_info['access_token'])
+    currentracklist = sp.currently_playing('US')
+    cname = currentracklist['item']['name']
+    ctime = currentracklist['progress_ms']
+    cartist = currentracklist['item']['artists'][0]['name']
+    cid = currentracklist['item']['id']
+    url = currentracklist['item']['album']['images'][1]['url']
+    #print(cname, ctime, cartist, cid)#
+    cskip = 1
+    insert_track(cname, cid, cartist, ctime, cskip)
+    sp.previous_track()
+    currentracklist = sp.currently_playing('US')
+    cname = currentracklist['item']['name']
+    ctime = currentracklist['progress_ms']
+    cartist = currentracklist['item']['artists'][0]['name']
+    cid = currentracklist['item']['id']
+    url = currentracklist['item']['album']['images'][1]['url']
+    return jsonify({'name': cname, 'time': ctime, 'artist': cartist, 'url': url})
 
 def get_token():
     token_info = session.get(TOKEN_INFO, None)
@@ -109,7 +163,7 @@ def create_spotify_oauth():
         client_id="",
         client_secret="",
         redirect_uri=url_for('redirectPage', _external=True),
-        scope=('user-read-private', 'user-modify-playback-state', 'user-read-currently-playing'))
+        scope=('user-read-private', 'user-modify-playback-state', 'user-read-currently-playing', 'user-read-playback-state', 'user-read-recently-played','app-remote-control', 'streaming'))
 
 
 def get_db():
@@ -164,6 +218,19 @@ def load_tables(username):
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM tracks")
 
+def get_devices():
+    try:
+        token_info = get_token()
+    except Exception:
+        print("user not logged in")
+        return redirect("/")
+    sp = spotipy.Spotify(auth=token_info['access_token'])
+    devices = sp.devices()
+    if devices['devices']:
+        device_id = devices['devices'][0]['id']
+        return device_id
+    else:
+        return 0
 
 def insert_track(cname, cid, cartist, ctime, cskip):  # TODO need to take my user out of here#
     conn = sqlite3.connect("trackstats.db")
@@ -198,6 +265,7 @@ def refreshtracks():
     conn = sqlite3.connect("trackstats.db")
     cursor = conn.cursor()
     cursor.execute("SELECT TOP 5 * FROM tracksdetails")
+    conn.close()
     return cursor.fetchall()
 
 

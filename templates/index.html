@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="EN">
+<html lang="EN" xmlns="http://www.w3.org/1999/html">
 <head>
     <script>
    function play() {
@@ -32,6 +32,40 @@
                     console.error(error);
                 });
     }
+    </script>
+        <script>
+    function goback() {
+            fetch("/go-back")
+                .then(response => response.json())
+                .then(data => {
+                    console.log(data);
+            document.getElementById('song-name').innerHTML = data.name;
+            document.getElementById('time-elapsed').innerHTML = data.time + ' ms';
+            document.getElementById('song-artist').innerHTML = data.artist;
+            document.getElementById('album-cover').src = data.url;
+                })
+                .catch(error => {
+                    console.error(error);
+                });
+    }
+        </script>
+    <script>
+     function pausesong() {
+            fetch("/pause-song")
+                .then(response => response.json())
+                .then(data => {
+                    console.log(data);
+            document.getElementById('song-name').innerHTML = data.name;
+            document.getElementById('time-elapsed').innerHTML = data.time + ' ms';
+            document.getElementById('song-artist').innerHTML = data.artist;
+            document.getElementById('album-cover').src = data.url;
+                })
+                .catch(error => {
+                    console.error(error);
+                });
+    }
+    </script>
+    <script>
     window.addEventListener('load', function() {
   play();
 });
@@ -64,12 +98,12 @@
 <div class="container-fluid" style="background-color: #f2f2f2;">
   <div class="row">
     <div class="col-sm-6">
-      <button type="button" class="btn btn-danger" onclick="javascript:play()">Play</button>
-      <button type="button" class="btn btn-danger">Pause</button>
+      <button type="button" class="btn btn-danger"onclick="javascript:play()">Play</button>
+      <button type="button" class="btn btn-danger"onclick="javascript:pausesong()">Pause</button>
     </div>
     <div class="col-sm-6">
       <button type="button" class="btn btn-danger"onclick="javascript:skipinsert()">Skip Forward</button>
-      <button type="button" class="btn btn-danger">Skip Back</button>
+      <button type="button" class="btn btn-danger"onclick="javascript:goback()">Skip Back</button>
     </div>
   </div>
 </div>
