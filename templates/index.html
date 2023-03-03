@@ -1,110 +1,122 @@
 <!DOCTYPE html>
 <html lang="EN" xmlns="http://www.w3.org/1999/html">
 <head>
-    <script>
-   function play() {
-    fetch("/current-playback")
-        .then(response => response.json())
-        .then(data => {
-            console.log(data);
-            document.getElementById('song-name').innerHTML = data.name;
-            document.getElementById('time-elapsed').innerHTML = data.time + ' ms';
-            document.getElementById('song-artist').innerHTML = data.artist;
-            document.getElementById('album-cover').src = data.url;
-        })
-        .catch(error => {
-            console.error(error);
-        });
-}
-</script>
-        <script>
-    function skipinsert() {
+      <script>
+        function play() {
+            let elapsedTime = 0;
+            let timerId;
+            clearInterval(timerId)
+            fetch("/current-playback")
+                .then(response => response.json())
+                .then(data => {
+                    console.log(data);
+                    document.getElementById('song-name').innerHTML = data.name;
+                    document.getElementById('max-duration').innerHTML = data.mtime + ' s';
+                    document.getElementById('song-artist').innerHTML = data.artist;
+                    document.getElementById('album-cover').src = data.url;
+                    elapsedTime = data.time / 1000;
+                    maxDuration = data.mtime / 1000;
+                    document.getElementById('max-duration').innerHTML = maxDuration + ' s';
+                    document.getElementById('time-elapsed').innerHTML = elapsedTime + ' s';
+                    timerId = setInterval(updateTime(elapsedTime), 1000)
+                })
+                .catch(error => {
+                    console.error(error);
+                });
+        }
+        function updateTime(elapsedTime) {
+            return () => {
+                elapsedTime = elapsedTime + 1;
+            if (elapsedTime > maxDuration) {
+                skipinsert()
+                play()
+            }
+            document.getElementById('time-elapsed').innerHTML = elapsedTime + ' s';
+            };
+        }
+        function skipinsert() {
             fetch("/skip-insert")
                 .then(response => response.json())
                 .then(data => {
                     console.log(data);
-            document.getElementById('song-name').innerHTML = data.name;
-            document.getElementById('time-elapsed').innerHTML = data.time + ' ms';
-            document.getElementById('song-artist').innerHTML = data.artist;
-            document.getElementById('album-cover').src = data.url;
+                    document.getElementById('song-name').innerHTML = data.name;
+                    document.getElementById('time-elapsed').innerHTML = data.time + ' ms';
+                    document.getElementById('song-artist').innerHTML = data.artist;
+                    document.getElementById('album-cover').src = data.url;
                 })
                 .catch(error => {
                     console.error(error);
                 });
-    }
-    </script>
-        <script>
-    function goback() {
+        }
+        function goback() {
             fetch("/go-back")
                 .then(response => response.json())
                 .then(data => {
                     console.log(data);
-            document.getElementById('song-name').innerHTML = data.name;
-            document.getElementById('time-elapsed').innerHTML = data.time + ' ms';
-            document.getElementById('song-artist').innerHTML = data.artist;
-            document.getElementById('album-cover').src = data.url;
+                    document.getElementById('song-name').innerHTML = data.name;
+                    document.getElementById('time-elapsed').innerHTML = data.time + ' ms';
+                    document.getElementById('song-artist').innerHTML = data.artist;
+                    document.getElementById('album-cover').src = data.url;
                 })
                 .catch(error => {
                     console.error(error);
                 });
-    }
-        </script>
-    <script>
-     function pausesong() {
+        }
+        function pausesong() {
             fetch("/pause-song")
                 .then(response => response.json())
                 .then(data => {
                     console.log(data);
-            document.getElementById('song-name').innerHTML = data.name;
-            document.getElementById('time-elapsed').innerHTML = data.time + ' ms';
-            document.getElementById('song-artist').innerHTML = data.artist;
-            document.getElementById('album-cover').src = data.url;
+                    document.getElementById('song-name').innerHTML = data.name;
+                    document.getElementById('time-elapsed').innerHTML = data.time + ' ms';
+                    document.getElementById('song-artist').innerHTML = data.artist;
+                    document.getElementById('album-cover').src = data.url;
                 })
                 .catch(error => {
                     console.error(error);
                 });
-    }
+        }
+        window.addEventListener('load', function () {
+            play();
+        });
     </script>
-    <script>
-    window.addEventListener('load', function() {
-  play();
-});
-</script>
 
     <link rel="stylesheet"
           href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <script
-        src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery/min.js"></script>
+            src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery/min.js"></script>
     <script
-        src="../js/main.js"></script>
+            src="../js/main.js"></script>
     <script
-        src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+            src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
     <script
-        src="https://maxcdn.bootstrap.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+            src="https://maxcdn.bootstrap.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
     <script
-        src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+            src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script
-        src="https://sdk.scdn.co/spotify-player.js"></script>
+            src="https://sdk.scdn.co/spotify-player.js"></script>
     <title>Spotify Stats</title>
 </head>
 <body>
 <div class="jumbotron text-center">
     <h1>Welcome: {{ all_data }}</h1>
     <p>Song name: <span id="song-name">{{ name }}</span></p>
-    <p>Time elapsed: <span id="time-elapsed">{{ time }} ms</span></p>
+    <p>Time elapsed: <span id="time-elapsed">{{ time }}</span></p>
+    <p>Max Duration: <span id="max-duration">{{ mtime }}</span></p>
     <p>Song Artist: <span id="song-artist">{{ artist }}</span></p>
     <img id="album-cover" src={{ url }} alt="Album cover">
 </div>
 <div class="container-fluid" style="background-color: #f2f2f2;">
-  <div class="row">
-    <div class="col-sm-6">
-      <button type="button" class="btn btn-danger"onclick="javascript:play()">Play</button>
-      <button type="button" class="btn btn-danger"onclick="javascript:pausesong()">Pause</button>
+    <div class="row">
+        <div class="col-sm-6">
+            <button type="button" class="btn btn-danger" onclick="javascript:play()">Play</button>
+            <button type="button" class="btn btn-danger" onclick="javascript:pausesong()">Pause</button>
+        </div>
+        <div class="col-sm-6">
+            <button type="button" class="btn btn-danger" onclick="javascript:skipinsert()">Skip Forward</button>
+            <button type="button" class="btn btn-danger" onclick="javascript:goback()">Skip Back</button>
+        </div>
     </div>
-    <div class="col-sm-6">
-      <button type="button" class="btn btn-danger"onclick="javascript:skipinsert()">Skip Forward</button>
-      <button type="button" class="btn btn-danger"onclick="javascript:goback()">Skip Back</button>
-    </div>
-  </div>
+</div>
 </div>
 </body>

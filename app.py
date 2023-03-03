@@ -4,7 +4,7 @@ import spotipy
 # import json#
 # import pprint#
 import sqlite3
-import pdp
+#import pdp#
 from flask import Flask, request, url_for, session, redirect, g, render_template, jsonify
 from spotipy.oauth2 import SpotifyOAuth
 #import pandas#
@@ -12,8 +12,8 @@ from spotipy.oauth2 import SpotifyOAuth
 app = Flask(__name__)
 
 app.secret_key = ""
-app.config = ''
-TOKEN_INFO = ''
+app.config['']
+TOKEN_INFO = ""
 conn = sqlite3.connect("trackstats.db")
 cursor = conn.cursor()
 
@@ -68,16 +68,17 @@ def getplayback():
         lastdevice = get_devices()
         if lastdevice != 0:
             sp.start_playback()
-    else:
-        return 0
+        return jsonify({})
     cname = currentracklist['item']['name']
     ctime = currentracklist['progress_ms']
     cid = currentracklist['item']['id']
     url = currentracklist['item']['album']['images'][1]['url']
     cartist = currentracklist['item']['artists'][0]['name']
-    #print(currentracklist)#
+    mtime = duration_ms = currentracklist['item']['duration_ms']
+   # print(currentracklist)#
+    print(mtime)
     #cresults = (cname, ctime, cid, url)#
-    return jsonify({'name': cname, 'time': ctime, 'artist': cartist, 'url': url})
+    return jsonify({'name': cname, 'time': ctime, 'mtime': mtime, 'artist': cartist, 'url': url})
 
 
 @app.route('/skip-insert')
@@ -89,17 +90,19 @@ def skipinsert():
         return redirect("/")
     sp = spotipy.Spotify(auth=token_info['access_token'])
     currentracklist = sp.currently_playing('US')
-    print(currentracklist)
+    #print(currentracklist)#
     cname = currentracklist['item']['name']
     ctime = currentracklist['progress_ms']
     cartist = currentracklist['item']['artists'][0]['name']
     cid = currentracklist['item']['id']
     url = currentracklist['item']['album']['images'][1]['url']
+    mtime = currentracklist['item']['duration_ms']
+    print(mtime)
     #print(cname, ctime, cartist, cid)#
     cskip = 1
-    insert_track(cname, cid, cartist, ctime, cskip)
+    insert_track(cname, cid, cartist, ctime, cskip, mtime)
     sp.next_track()
-    return jsonify({'name': cname, 'time': ctime, 'artist': cartist, 'url': url})
+    return jsonify({'name': cname, 'time': ctime, 'mtime': mtime, 'artist': cartist, 'url': url})
 
 @app.route('/pause-song')
 def pausesong():
@@ -176,7 +179,7 @@ def get_db():
         return cresult[0]
 
 
-def create_db():
+def create_db(): #create all the tables#
     conn = sqlite3.connect("trackstats.db")
     cursor = conn.cursor()
     cursor.execute("DROP TABLE IF EXISTS users")
@@ -193,7 +196,7 @@ def create_db():
     conn.close()
 
 
-def insert_db(username):
+def insert_db(username): #inserts send username into database#
     conn = sqlite3.connect("trackstats.db")
     cursor = conn.cursor()
     cursor.execute("INSERT INTO users (user_name) VALUES (?)", (username,))
@@ -201,7 +204,7 @@ def insert_db(username):
     conn.close()
 
 
-def check_user(username):
+def check_user(username): #check if sent paramater user matches the user in the users table#
     conn = sqlite3.connect("trackstats.db")
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM USERS WHERE user_name = (?)", (username,))
@@ -218,7 +221,7 @@ def load_tables(username):
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM tracks")
 
-def get_devices():
+def get_devices(): #get list of devices used on spotify, and returns last used#
     try:
         token_info = get_token()
     except Exception:
@@ -226,13 +229,13 @@ def get_devices():
         return redirect("/")
     sp = spotipy.Spotify(auth=token_info['access_token'])
     devices = sp.devices()
-    if devices['devices']:
+    if devices['devices']: #if there are any devices, return last used#
         device_id = devices['devices'][0]['id']
         return device_id
     else:
         return 0
 
-def insert_track(cname, cid, cartist, ctime, cskip):  # TODO need to take my user out of here#
+def insert_track(cname, cid, cartist, ctime, cskip, mtime):
     conn = sqlite3.connect("trackstats.db")
     cursor = conn.cursor()
     print(cname, cid, cartist, ctime, cskip)
@@ -248,17 +251,25 @@ def insert_track(cname, cid, cartist, ctime, cskip):  # TODO need to take my use
                        ("ralphie65", cname, ctime, cskip))
         conn.commit()
         cursor.execute("INSERT INTO tracks(track_id, user_name, track_name, artist, times_played, "
-                       "average_duration_played, last_duration_played) values(?,?,?,?,1,0,?)",
-                       (cid, "ralphie65", cname, cartist, ctime))
+                       "average_duration_played, last_duration_played, max_duration) values(?,?,?,?,1,?,?,?)",
+                       (cid, "ralphie65", cname, cartist, ctime, ctime, mtime))
         conn.commit()
-        t = cursor.execute("SELECT * FROM TRACKS")
-        print(t)
+        #t = cursor.execute("SELECT * FROM TRACKS")#
+       # print(t)#
         # cursor.execute("INSERT INTO trackdetails(user_name, track_name, duration_played, skipped) values(?,?,0,0)",#
         #  ("ralphie65", cname))#
         # conn.commit()#
         conn.close()
         return
 
+def api_helper(token_info):
+    sp = spotipy.Spotify(auth=token_info['access_token'])
+    currentracklist = sp.currently_playing('US')
+    cname = currentracklist['item']['name']
+    ctime = currentracklist['progress_ms']
+    cartist = currentracklist['item']['artists'][0]['name']
+    cid = currentracklist['item']['id']
+    url = currentracklist['item']['album']['images'][1]['url']
 
 @app.route('/refreshtracks')
 def refreshtracks():
@@ -268,5 +279,13 @@ def refreshtracks():
     conn.close()
     return cursor.fetchall()
 
+
+@app.route('/toplist')
+def toplist():
+    conn = sqlite3.connect("trackstats.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM tracksdetails LIMIT 5")
+    item = cursor.fetchall()
+    conn.close()
 
 conn.close()
