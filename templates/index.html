@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="EN" xmlns="http://www.w3.org/1999/html">
 <head>
-      <script>
+    <script>
         function play() {
             let elapsedTime = 0;
             let timerId;
@@ -24,16 +24,18 @@
                     console.error(error);
                 });
         }
+
         function updateTime(elapsedTime) {
             return () => {
                 elapsedTime = elapsedTime + 1;
-            if (elapsedTime > maxDuration) {
-                skipinsert()
-                play()
-            }
-            document.getElementById('time-elapsed').innerHTML = elapsedTime + ' s';
+                if (elapsedTime > maxDuration) {
+                    skipinsert()
+                    play()
+                }
+                document.getElementById('time-elapsed').innerHTML = elapsedTime + ' s';
             };
         }
+
         function skipinsert() {
             fetch("/skip-insert")
                 .then(response => response.json())
@@ -48,6 +50,7 @@
                     console.error(error);
                 });
         }
+
         function goback() {
             fetch("/go-back")
                 .then(response => response.json())
@@ -62,6 +65,7 @@
                     console.error(error);
                 });
         }
+
         function pausesong() {
             fetch("/pause-song")
                 .then(response => response.json())
@@ -76,8 +80,10 @@
                     console.error(error);
                 });
         }
+
         window.addEventListener('load', function () {
             play();
+            topfive();
         });
     </script>
 
@@ -117,6 +123,7 @@
             <button type="button" class="btn btn-danger" onclick="javascript:goback()">Skip Back</button>
         </div>
     </div>
+</div>
 </div>
 </div>
 </body>

@@ -97,11 +97,17 @@ def skipinsert():
     cid = currentracklist['item']['id']
     url = currentracklist['item']['album']['images'][1]['url']
     mtime = currentracklist['item']['duration_ms']
-    print(mtime)
     #print(cname, ctime, cartist, cid)#
     cskip = 1
     insert_track(cname, cid, cartist, ctime, cskip, mtime)
     sp.next_track()
+    currentracklist = sp.currently_playing('US')
+    cname = currentracklist['item']['name']
+    ctime = currentracklist['progress_ms']
+    cartist = currentracklist['item']['artists'][0]['name']
+    cid = currentracklist['item']['id']
+    url = currentracklist['item']['album']['images'][1]['url']
+    mtime = currentracklist['item']['duration_ms']
     return jsonify({'name': cname, 'time': ctime, 'mtime': mtime, 'artist': cartist, 'url': url})
 
 @app.route('/pause-song')
@@ -238,27 +244,27 @@ def get_devices(): #get list of devices used on spotify, and returns last used#
 def insert_track(cname, cid, cartist, ctime, cskip, mtime):
     conn = sqlite3.connect("trackstats.db")
     cursor = conn.cursor()
-    print(cname, cid, cartist, ctime, cskip)
+    cursor.execute("SELECT * FROM USERS LIMIT 1")
+    row = cursor.fetchone()
+    username = row[0]
     cursor.execute("SELECT * FROM trackdetails WHERE track_id = (?)", (cid,))
     results = cursor.fetchone()  # if it exists in track details than we just log the new instance#
     if results:
-        cursor.execute("INSERT INTO trackdetails(user_name, track_name, duration_played, skipped) values(?,?,?,?)",
-                       ("ralphie65", cname, ctime, cskip))
+        cursor.execute("INSERT INTO trackdetails(user_name, track_name, duration_played, skipped, track_id) values(?,?,?,?,?)",
+                       (username, cname, ctime, cskip, cid))
         conn.commit()
-        # TODO: Add update command here to tracks to update amount played and avg#
+        cursor.execute("UPDATE tracks SET times_played = times_played + 1, average_duration_played = "
+                       "(average_duration_played * times_played + ?) / (times_played + 1) WHERE track_id = ?",
+                       (ctime, cid))
+        conn.commit()
     else:
-        cursor.execute("INSERT INTO trackdetails(user_name, track_name, duration_played, skipped) values(?,?,?,?)",
-                       ("ralphie65", cname, ctime, cskip))
+        cursor.execute("INSERT INTO trackdetails(user_name, track_name, duration_played, skipped, track_id) values(?,?,?,?,?)",
+                       (username, cname, ctime, cskip, cid))
         conn.commit()
         cursor.execute("INSERT INTO tracks(track_id, user_name, track_name, artist, times_played, "
                        "average_duration_played, last_duration_played, max_duration) values(?,?,?,?,1,?,?,?)",
-                       (cid, "ralphie65", cname, cartist, ctime, ctime, mtime))
+                       (cid, username, cname, cartist, ctime, ctime, mtime))
         conn.commit()
-        #t = cursor.execute("SELECT * FROM TRACKS")#
-       # print(t)#
-        # cursor.execute("INSERT INTO trackdetails(user_name, track_name, duration_played, skipped) values(?,?,0,0)",#
-        #  ("ralphie65", cname))#
-        # conn.commit()#
         conn.close()
         return
 
@@ -270,6 +276,10 @@ def api_helper(token_info):
     cartist = currentracklist['item']['artists'][0]['name']
     cid = currentracklist['item']['id']
     url = currentracklist['item']['album']['images'][1]['url']
+    results = jsonify({'name': cname, 'time': ctime, 'artist': cartist, 'url': url})
+    return results
+
+
 
 @app.route('/refreshtracks')
 def refreshtracks():
@@ -284,8 +294,10 @@ def refreshtracks():
 def toplist():
     conn = sqlite3.connect("trackstats.db")
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM tracksdetails LIMIT 5")
+    cursor.execute("SELECT * FROM trackdetails LIMIT 5")
     item = cursor.fetchall()
     conn.close()
+    print(jsonify(item))
+    return jsonify(item)
 
 conn.close()
