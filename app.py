@@ -44,13 +44,13 @@ def getTracks():
     sp = spotipy.Spotify(auth=token_info['access_token'])
     userprofilelist = sp.current_user()
     username = userprofilelist.get('display_name')
+    user_profile_pic = userprofilelist['images'][0]['url']
     profilecheck = check_user(username)
     if profilecheck == 0:
         create_db()
-        insert_db(username)
-    data = get_db()
-    return render_template("index.html", all_data=data)
-    # return str(sp.current_user_saved_tracks(limit=50, offset=0)['items'][0])
+        insert_db(username, user_profile_pic)
+    user_name, user_prof_pic = get_db()
+    return render_template("index.html", user_profile_data=(user_name, user_profile_pic))
 
 
 @app.route('/current-playback')
@@ -75,9 +75,7 @@ def getplayback():
     url = currentracklist['item']['album']['images'][1]['url']
     cartist = currentracklist['item']['artists'][0]['name']
     mtime = duration_ms = currentracklist['item']['duration_ms']
-   # print(currentracklist)#
-    print(mtime)
-    #cresults = (cname, ctime, cid, url)#
+    #print(sp.me())#
     return jsonify({'name': cname, 'time': ctime, 'mtime': mtime, 'artist': cartist, 'url': url})
 
 
@@ -90,25 +88,9 @@ def skipinsert():
         return redirect("/")
     sp = spotipy.Spotify(auth=token_info['access_token'])
     currentracklist = sp.currently_playing('US')
-    #print(currentracklist)#
-    cname = currentracklist['item']['name']
-    ctime = currentracklist['progress_ms']
-    cartist = currentracklist['item']['artists'][0]['name']
-    cid = currentracklist['item']['id']
-    url = currentracklist['item']['album']['images'][1]['url']
-    mtime = currentracklist['item']['duration_ms']
-    #print(cname, ctime, cartist, cid)#
-    cskip = 1
-    insert_track(cname, cid, cartist, ctime, cskip, mtime)
+    api_helper(token_info, True)
     sp.next_track()
-    currentracklist = sp.currently_playing('US')
-    cname = currentracklist['item']['name']
-    ctime = currentracklist['progress_ms']
-    cartist = currentracklist['item']['artists'][0]['name']
-    cid = currentracklist['item']['id']
-    url = currentracklist['item']['album']['images'][1]['url']
-    mtime = currentracklist['item']['duration_ms']
-    return jsonify({'name': cname, 'time': ctime, 'mtime': mtime, 'artist': cartist, 'url': url})
+    return api_helper(token_info, False)
 
 @app.route('/pause-song')
 def pausesong():
@@ -118,16 +100,10 @@ def pausesong():
         print("user not logged in")
         return redirect("/")
     sp = spotipy.Spotify(auth=token_info['access_token'])
-    currentracklist = sp.currently_playing('US')
-    cname = currentracklist['item']['name']
-    ctime = currentracklist['progress_ms']
-    cartist = currentracklist['item']['artists'][0]['name']
-    cid = currentracklist['item']['id']
-    url = currentracklist['item']['album']['images'][1]['url']
-    cskip = 1
-    #insert_track(cname, cid, cartist, ctime, cskip)#
+    results = api_helper(token_info, False)
     sp.pause_playback()
-    return jsonify({'name': cname, 'time': ctime, 'artist': cartist, 'url': url})
+    #return jsonify({'name': cname, 'time': ctime, 'artist': cartist, 'url': url})#
+    return results
 
 @app.route('/go-back')
 def goback():
@@ -180,10 +156,9 @@ def get_db():
     if db is None:
         db = g._database = sqlite3.connect('trackstats.db')
         cursor = db.cursor()
-        cursor.execute("select user_name from users")
+        cursor.execute("SELECT user_name, user_prof_pic FROM userdetails")
         cresult = cursor.fetchone()
-        return cresult[0]
-
+        return cresult
 
 def create_db(): #create all the tables#
     conn = sqlite3.connect("trackstats.db")
@@ -191,21 +166,22 @@ def create_db(): #create all the tables#
     cursor.execute("DROP TABLE IF EXISTS users")
     cursor.execute("DROP TABLE IF EXISTS tracks")
     cursor.execute("DROP TABLE IF EXISTS trackdetails")
+    cursor.execute("DROP TABLE IF EXISTS userdetails")
     cursor.execute(
-        "CREATE TABLE tracks (track_id text, user_name text, track_name text, artist text, times_played INTEGER, average_duration_played "
+        "CREATE TABLE tracks (track_url text, track_id text, user_name text, track_name text, artist text, times_played INTEGER, average_duration_played "
         "REAL, last_duration_played REAL, max_duration REAL, PRIMARY KEY (track_id))")
     cursor.execute(
         "CREATE TABLE trackdetails (auto_id INTEGER PRIMARY KEY AUTOINCREMENT, user_name text, track_name text, duration_played REAL, skipped INTEGER, track_id text)")
-    # cursor.execute(
-    #  "create table users (user_name text, total_time_listened real, favorite_artist text)")
     cursor.execute("CREATE TABLE users (user_name text)")
+    cursor.execute("CREATE TABLE userdetails (user_name text, total_time_listened real, user_prof_pic text)")
     conn.close()
 
 
-def insert_db(username): #inserts send username into database#
+def insert_db(username, purl): #inserts send username into database#
     conn = sqlite3.connect("trackstats.db")
     cursor = conn.cursor()
     cursor.execute("INSERT INTO users (user_name) VALUES (?)", (username,))
+    cursor.execute("INSERT INTO userdetails (user_name, total_time_listened, user_prof_pic) VALUES (?,?,?)", (username,0,purl))
     conn.commit()
     conn.close()
 
@@ -241,7 +217,7 @@ def get_devices(): #get list of devices used on spotify, and returns last used#
     else:
         return 0
 
-def insert_track(cname, cid, cartist, ctime, cskip, mtime):
+def insert_track(cname, cid, cartist, ctime, cskip, mtime, urlmini):
     conn = sqlite3.connect("trackstats.db")
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM USERS LIMIT 1")
@@ -257,18 +233,19 @@ def insert_track(cname, cid, cartist, ctime, cskip, mtime):
                        "(average_duration_played * times_played + ?) / (times_played + 1) WHERE track_id = ?",
                        (ctime, cid))
         conn.commit()
+        conn.close()
     else:
         cursor.execute("INSERT INTO trackdetails(user_name, track_name, duration_played, skipped, track_id) values(?,?,?,?,?)",
                        (username, cname, ctime, cskip, cid))
         conn.commit()
-        cursor.execute("INSERT INTO tracks(track_id, user_name, track_name, artist, times_played, "
-                       "average_duration_played, last_duration_played, max_duration) values(?,?,?,?,1,?,?,?)",
-                       (cid, username, cname, cartist, ctime, ctime, mtime))
+        cursor.execute("INSERT INTO tracks(track_url,track_id, user_name, track_name, artist, times_played, "
+                       "average_duration_played, last_duration_played, max_duration) values(?,?,?,?,?,1,?,?,?)",
+                       (urlmini, cid, username, cname, cartist, ctime, ctime, mtime))
         conn.commit()
         conn.close()
         return
 
-def api_helper(token_info):
+def api_helper(token_info, insert):
     sp = spotipy.Spotify(auth=token_info['access_token'])
     currentracklist = sp.currently_playing('US')
     cname = currentracklist['item']['name']
@@ -276,7 +253,12 @@ def api_helper(token_info):
     cartist = currentracklist['item']['artists'][0]['name']
     cid = currentracklist['item']['id']
     url = currentracklist['item']['album']['images'][1]['url']
+    mtime = currentracklist['item']['duration_ms']
+    urlmini = currentracklist['item']['album']['images'][2]['url']
+    cskip = 1
     results = jsonify({'name': cname, 'time': ctime, 'artist': cartist, 'url': url})
+    if insert:
+        insert_track(cname, cid, cartist, ctime, cskip, mtime, urlmini)
     return results
 
 
@@ -294,10 +276,25 @@ def refreshtracks():
 def toplist():
     conn = sqlite3.connect("trackstats.db")
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM trackdetails LIMIT 5")
-    item = cursor.fetchall()
+    cursor.execute("SELECT * FROM tracks")
+    rows = cursor.fetchall()
+
+    # create array of dictionaries
+    items = []
+    for row in rows:
+        item = {
+            'track_url': row[0],
+           # 'track_id': row[1],#
+            #'username': row[2],#
+            'track_name': row[3],
+            'artist': row[4],
+            'times_played': row[5],
+            'average_duration_played': row[6],
+            'last_duration_played': row[7],
+            'max_duration': row[8]
+        }
+        items.append(item)
     conn.close()
-    print(jsonify(item))
-    return jsonify(item)
+    return jsonify(items)
 
 conn.close()

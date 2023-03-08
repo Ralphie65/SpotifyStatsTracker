@@ -4,6 +4,7 @@
     <script>
         function play() {
             let elapsedTime = 0;
+            let maxDuration = 0;
             let timerId;
             clearInterval(timerId)
             fetch("/current-playback")
@@ -31,6 +32,9 @@
                 if (elapsedTime > maxDuration) {
                     skipinsert()
                     play()
+                    elapsedTime = 0;
+                    maxDuration = 0;
+                    clearInterval(elapsedTime)
                 }
                 document.getElementById('time-elapsed').innerHTML = elapsedTime + ' s';
             };
@@ -42,7 +46,7 @@
                 .then(data => {
                     console.log(data);
                     document.getElementById('song-name').innerHTML = data.name;
-                    document.getElementById('time-elapsed').innerHTML = data.time + ' ms';
+                    document.getElementById('time-elapsed').innerHTML = data.time + ' s';
                     document.getElementById('song-artist').innerHTML = data.artist;
                     document.getElementById('album-cover').src = data.url;
                 })
@@ -57,7 +61,7 @@
                 .then(data => {
                     console.log(data);
                     document.getElementById('song-name').innerHTML = data.name;
-                    document.getElementById('time-elapsed').innerHTML = data.time + ' ms';
+                    document.getElementById('time-elapsed').innerHTML = data.time + '  s';
                     document.getElementById('song-artist').innerHTML = data.artist;
                     document.getElementById('album-cover').src = data.url;
                 })
@@ -72,7 +76,7 @@
                 .then(data => {
                     console.log(data);
                     document.getElementById('song-name').innerHTML = data.name;
-                    document.getElementById('time-elapsed').innerHTML = data.time + ' ms';
+                    document.getElementById('time-elapsed').innerHTML = data.time + '  s';
                     document.getElementById('song-artist').innerHTML = data.artist;
                     document.getElementById('album-cover').src = data.url;
                 })
@@ -81,14 +85,63 @@
                 });
         }
 
+        function populateRecords() {
+            fetch('/toplist')
+                .then(response => response.json())
+                .then(data => {
+                    const table = $('#myTable').DataTable({
+                        columns: [
+                            {
+                                data: "track_url",
+                                render: function (data, type, row) {
+                                    return '<img src="' + data + '" alt="Album cover" height="64"/>';
+                                }
+                            },
+                            {data: "track_name"},
+                            {data: "artist"},
+                            {data: "times_played"},
+                            {
+                                data: "average_duration_played",
+                                render: function (data, type, row) {
+                                    if (type === 'display') {
+                                        return (data / 1000) + ' s';
+                                    }
+                                    return data;
+                                }
+                            },
+                            {
+                                data: "last_duration_played",
+                                render: function (data, type, row) {
+                                    if (type === 'display') {
+                                        return (data / 1000) + ' s';
+                                    }
+                                    return data;
+                                }
+                            },
+                            {
+                                data: "max_duration",
+                                render: function (data, type, row) {
+                                    if (type === 'display') {
+                                        return (data / 1000) + ' s';
+                                    }
+                                    return data;
+                                }
+                            }
+                        ]
+                    });
+
+                    table.rows.add(data).draw();
+                })
+                .catch(error => console.error(error));
+        }
+
         window.addEventListener('load', function () {
             play();
-            topfive();
+            populateRecords();
         });
     </script>
-
-    <link rel="stylesheet"
-          href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
+          integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
     <script
             src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery/min.js"></script>
     <script
@@ -101,16 +154,39 @@
             src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script
             src="https://sdk.scdn.co/spotify-player.js"></script>
+    <script
+            src="https://unpkg.com/petite-vue"></script>
+    <script
+            src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.10.25/css/jquery.dataTables.min.css">
     <title>Spotify Stats</title>
 </head>
 <body>
+<nav class="navbar navbar-expand-lg navbar-dark bg-success">
+    <a class="navbar-brand" href="#">Spotify Stat Tracker</a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav"
+            aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav ml-auto">
+            <li class="nav-item">
+                <a class="nav-link" href="#">Reports</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#">About</a>
+            </li>
+        </ul>
+    </div>
+</nav>
 <div class="jumbotron text-center">
-    <h1>Welcome: {{ all_data }}</h1>
+    <h1>Welcome: {{ user_profile_data[0] }}</h1>
     <p>Song name: <span id="song-name">{{ name }}</span></p>
     <p>Time elapsed: <span id="time-elapsed">{{ time }}</span></p>
     <p>Max Duration: <span id="max-duration">{{ mtime }}</span></p>
     <p>Song Artist: <span id="song-artist">{{ artist }}</span></p>
     <img id="album-cover" src={{ url }} alt="Album cover">
+    <img src={{ user_profile_data[1] }} alt="Profile Picture">
 </div>
 <div class="container-fluid" style="background-color: #f2f2f2;">
     <div class="row">
@@ -124,6 +200,19 @@
         </div>
     </div>
 </div>
-</div>
-</div>
+<table id="myTable" class="display">
+    <thead>
+    <tr>
+        <th>Album Cover</th>
+        <th>Track Name</th>
+        <th>Artist</th>
+        <th>Times Played</th>
+        <th>Avg Duration</th>
+        <th>Last Duration</th>
+        <th>Song Length</th>
+    </tr>
+    </thead>
+    <tbody>
+    </tbody>
+</table>
 </body>
