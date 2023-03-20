@@ -7,13 +7,17 @@ import sqlite3
 #import pdp#
 from flask import Flask, request, url_for, session, redirect, g, render_template, jsonify
 from spotipy.oauth2 import SpotifyOAuth
+from environs import Env
 #import pandas#
 
 app = Flask(__name__)
 
-app.secret_key = ""
-app.config['']
-TOKEN_INFO = ""
+env = Env()
+env.read_env()  # load the environment variables from the .env file
+
+app.secret_key = env('app.secret_key')
+app.config[env('config_name')] = env('cookie_name')
+TOKEN_INFO = env('token')
 conn = sqlite3.connect("trackstats.db")
 cursor = conn.cursor()
 
@@ -22,7 +26,6 @@ def login():
     sp_oauth = create_spotify_oauth()
     auth_url = sp_oauth.get_authorize_url()
     return redirect(auth_url)
-
 
 @app.route('/redirect')
 def redirectPage():
@@ -145,8 +148,8 @@ def get_token():
 
 def create_spotify_oauth():
     return SpotifyOAuth(
-        client_id="",
-        client_secret="",
+        client_id=env('client_id'),
+        client_secret=env('client_secret'),
         redirect_uri=url_for('redirectPage', _external=True),
         scope=('user-read-private', 'user-modify-playback-state', 'user-read-currently-playing', 'user-read-playback-state', 'user-read-recently-played','app-remote-control', 'streaming'))
 
